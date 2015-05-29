@@ -3,7 +3,7 @@ import unittest2 as unittest
 from aws.cfn.bridge.resources import CustomResource
 
 
-class CfnBridgeConfigProvider(object):
+class MockCfnBridgeConfigProvider(object):
 
     def get_options(self):
         return {
@@ -12,13 +12,13 @@ class CfnBridgeConfigProvider(object):
         }
 
 
-class RaiseCfnBridgeConfigProvider(object):
+class MockCfnBridgeConfigProviderRaise(object):
 
     def get_options(self):
         raise Exception('Raise')
 
 
-class NotDefiendCfnBridgeConfigProvider(object):
+class MockCfnBridgeConfigProviderNotDefiend(object):
     pass
 
 
@@ -27,7 +27,7 @@ class TestConfigProvider(unittest.TestCase):
     def test_override_custome_resource_by_config_provider(self):
         options = {
             'config_provider': (
-                'test_config_provider.CfnBridgeConfigProvider')
+                'test_config_provider.MockCfnBridgeConfigProvider')
         }
         resource = CustomResource('name', 'file', options)
         self.assertEqual(
@@ -35,7 +35,7 @@ class TestConfigProvider(unittest.TestCase):
 
     def test_override_custome_resource_with_incorrect_module(self):
         options = {
-            'config_provider': 'XXXXXX.CfnBridgeConfigProvider.get_option',
+            'config_provider': 'XXXXXX.MockCfnBridgeConfigProvider.get_option',
         }
         with self.assertRaises(ValueError):
             CustomResource('name', 'file', options)
@@ -43,7 +43,7 @@ class TestConfigProvider(unittest.TestCase):
     def test_override_custome_resource_get_option_not_defiend(self):
         options = {
             'config_provider': (
-                'test_config_provider.NotDefinedCfnBridgeConfigProvider')
+                'test_config_provider.MockCfnBridgeConfigProviderNotDefined')
         }
         with self.assertRaises(ValueError):
             CustomResource('name', 'file', options)
@@ -51,7 +51,7 @@ class TestConfigProvider(unittest.TestCase):
     def test_override_custome_resource_get_option_raise(self):
         options = {
             'config_provider': (
-                'test_config_provider.RaiseCfnBridgeConfigProvider')
+                'test_config_provider.MockCfnBridgeConfigProviderRaise')
         }
         with self.assertRaises(Exception):
             CustomResource('name', 'file', options)
