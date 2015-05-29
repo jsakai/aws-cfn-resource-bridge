@@ -18,6 +18,7 @@ from tests import unittest, expect_error
 
 from aws.cfn.bridge.resources import CustomResource
 
+
 class TestCustomResource(unittest.TestCase):
     def setUp(self):
         self.options = {
