@@ -5,11 +5,21 @@ from aws.cfn.bridge.resources import CustomResource
 
 class CfnBridgeConfigProvider(object):
 
-    def get_option(self):
+    def get_options(self):
         return {
             'queue_url': 'https://queue.us-east-1.amazonaws.com',
             'default_action': 'action-default'
         }
+
+
+class RaiseCfnBridgeConfigProvider(object):
+
+    def get_options(self):
+        raise Exception('Raise')
+
+
+class NotDefiendCfnBridgeConfigProvider(object):
+    pass
 
 
 class TestConfigProvider(unittest.TestCase):
@@ -17,7 +27,7 @@ class TestConfigProvider(unittest.TestCase):
     def test_override_custome_resource_by_config_provider(self):
         options = {
             'config_provider': (
-                'test_config_provider.CfnBridgeConfigProvider.get_option')
+                'test_config_provider.CfnBridgeConfigProvider')
         }
         resource = CustomResource('name', 'file', options)
         self.assertEqual(
@@ -30,19 +40,20 @@ class TestConfigProvider(unittest.TestCase):
         with self.assertRaises(ValueError):
             CustomResource('name', 'file', options)
 
-    def test_override_custome_resource_with_incorrect_class(self):
+    def test_override_custome_resource_get_option_not_defiend(self):
         options = {
-            'config_provider': 'test_config_provider.XXXXXX.get_option',
+            'config_provider': (
+                'test_config_provider.NotDefinedCfnBridgeConfigProvider')
         }
         with self.assertRaises(ValueError):
             CustomResource('name', 'file', options)
 
-    def test_override_custome_resource_with_incorrect_fnunc(self):
+    def test_override_custome_resource_get_option_raise(self):
         options = {
             'config_provider': (
-                'test_config_provider.CfnBridgeConfigProvider.XXXXXX')
+                'test_config_provider.RaiseCfnBridgeConfigProvider')
         }
-        with self.assertRaises(ValueError):
+        with self.assertRaises(Exception):
             CustomResource('name', 'file', options)
 
     def test_override_custome_resource_not_enough_params(self):

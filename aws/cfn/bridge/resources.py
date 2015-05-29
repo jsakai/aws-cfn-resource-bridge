@@ -86,7 +86,8 @@ class CustomResource(object):
 
         config_provider = options.get(_OPTION_CONFIG_PROVIDER)
         if config_provider:
-            self.override_config(config_provider)
+            config = self.get_config_from_config_provider(config_provider)
+            self.override_config(config)
 
         if not self._queue_url:
             raise ValueError(u"[%s] in '%s' is missing 'queue_url' attribute" % (name, source_file))
@@ -112,21 +113,48 @@ class CustomResource(object):
         if not self._update_action:
             raise ValueError(u"[%s] in '%s' must define %s" % (name, source_file, _OPTION_UPDATE_ACTION))
 
-    def override_config(self, config_provider):
-        providers = config_provider.rsplit('.', 2)
-        if len(providers) != 3:
+    def get_config_from_config_provider(self, config_provider):
+        """Retrieve config from config provider.
+
+        @param config_provider: a string of config provider class path that
+            defined get_options for returning dict type of config value.
+        @type config_provider: string
+        @return dict
+
+        Below is an example of a config provider settings.
+
+        #> cat /etc/cfn/cfn-resource-bridge.conf
+
+        [cfn_client]
+        resource_type=Custom::CfnCustom
+        config_provider=example.com.config_provider.CfnBridgeConfigProvider
+
+        #> cat /Library/Python/2.7/site-packages/eaxmple/com/config_provider.py
+
+        class CfnBridgeConfigProvider(object):
+
+            def get_options(self):
+                queue_url = self.get_queue_url_from_aws_dynamodb()
+                return {
+                    'queue_url': queue_url,
+                    'default_action': 'action-default'
+                }
+        """
+        config = {}
+
+        providers = config_provider.rsplit('.', 1)
+        if len(providers) < 2:
             raise ValueError(
-                'Provide <python lib path>.<class name>.<func_name> '
-                'ex) example.com.CfnBrdigeConfigProviderClass.get_option_func')
+                'Provide <python file path>.<class name>'
+                'ex) example.com.CfnBrdigeConfigProviderClass')
 
         module_name = providers[0]
         class_name = providers[1]
-        func_name = providers[2]
 
         try:
             module_provider = importlib.import_module(module_name)
         except ImportError:
-            raise ValueError(u"Cloud not import %s" % module_name)
+            raise ValueError(u"Could not import %s" % module_name)
 
         try:
             class_provider = getattr(module_provider, class_name)
@@ -134,16 +162,31 @@ class CustomResource(object):
             raise ValueError(u"Class %s is not defined" % class_name)
 
         class_provider = class_provider()
-        try:
-            func_provider = getattr(class_provider, func_name)
-        except AttributeError:
-            raise ValueError(u"Func %s is not defiend" % func_name)
 
-        dict_options = func_provider()
-        for key, value in dict_options.iteritems():
+        try:
+            config = class_provider.get_options()
+        except AttributeError:
+            raise ValueError(u"get_options is not defiend in %s" % class_name)
+        except Exception, ex:
+            log.error('Fail to call get_options, ex=%s' % ex)
+            raise
+
+        if not isinstance(config, dict):
+            raise ValueError(u"get_options is not returning dict type")
+
+        return config
+
+    def override_config(self, config):
+        """Override static default config values at runtime
+
+        @param config: a dictionary of default config values which may be
+                       overridden as needed
+        @type config: dict
+        @return None
+        """
+        for key, value in config.iteritems():
             key = '_%s' % key
-            if hasattr(self, key):
-                setattr(self, key, value)
+            setattr(self, key, value)
 
     @property
     def name(self):
